@@ -66,4 +66,19 @@ public class GlobalExpextionHandler {
                                 ex.getMessage());
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         }
+
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<ErrorResponse> handleUnexpectedError(
+                        Exception ex,
+                        HttpServletRequest request) {
+
+                ErrorResponse error = new ErrorResponse(
+                                Instant.now(),
+                                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
+                                "Something went wrong while processing your request. Please try again.",
+                                request.getRequestURI());
+
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
 }

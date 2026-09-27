@@ -41,7 +41,7 @@ public class EmergencyController {
         return ResponseEntity.ok(apiResponse);
     }
 
-    @PostMapping("/access-code/{accessCode}")
+    @PostMapping("/track/{accessCode}")
     public ResponseEntity<ApiResponse<EmergencyResponse>> getEmergencyByAccessCode(
             @PathVariable String accessCode) {
         EmergencyResponse response = emergencyService.getEmergencyByAccessCode(accessCode);

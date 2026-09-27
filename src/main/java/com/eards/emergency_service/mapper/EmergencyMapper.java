@@ -11,7 +11,7 @@ import com.eards.emergency_service.models.Emergency;
 public interface EmergencyMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "status", constant = "REPORTED")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "accessCode", ignore = true)
