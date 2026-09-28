@@ -1,14 +1,14 @@
 # ERADS
 
-ERADS (Emergency Response & Ambulance Dispatch System) is a Spring Boot microservices-based platform designed to support emergency response coordination, ambulance dispatch management, and service communication across distributed backend components.
+ERADS is a Spring Boot microservices project for emergency response coordination and ambulance dispatch workflows. The current workspace contains a working discovery layer, a gateway, and the core emergency domain service already wired with PostgreSQL persistence and Eureka registration.
 
-## Overview
+## Current Workspace
 
-This workspace contains the following services for the ERADS system:
+This repository includes the following services:
 
-- `discovery-server`: Eureka service registry for ERADS service discovery
-- `api-gateway`: Spring Cloud Gateway for routing emergency-related requests to backend services
-- `emergency-service`: core ERADS backend service responsible for emergency operations, persistence, and event handling
+- `discovery-server`: Eureka service registry on port `8761`
+- `api-gateway`: Spring Cloud Gateway on port `8080`
+- `emergency-service`: emergency domain service on port `8081`
 
 ## Tech Stack
 
@@ -17,11 +17,13 @@ This workspace contains the following services for the ERADS system:
 - Spring Cloud 2025.1.3
 - PostgreSQL
 - Spring Data JPA
+- Flyway
 - Eureka Discovery Client
+- Spring Cloud Gateway (WebMVC)
 - Spring Actuator
 - Maven
 
-## Project Structure
+## Runtime Architecture
 
 ```text
 ERADS/
@@ -41,15 +43,13 @@ ERADS/
 └── ERADS_Professional_Project_Document.pdf
 ```
 
-## Services
+## Service Details
 
 ### 1. Discovery Server
 
-Runs on port `8761`.
-
-- Acts as Eureka server
-- Handles service registration and discovery
-- Central point for inter-service communication
+- Port: `8761`
+- Role: Eureka registry and service discovery hub
+- Configuration: `eureka.client.register-with-eureka=false` and `fetch-registry=false`
 
 Access URL:
 
@@ -59,25 +59,32 @@ http://localhost:8761
 
 ### 2. API Gateway
 
-Runs on port `8080`.
+- Port: `8080`
+- Role: route entry point for external traffic
+- Current route:
 
-- Routes external requests to downstream services
-- Centralizes request entry
-- Can handle security, rate limiting, and resilience later in the architecture
+```yaml
+- id: emergency-service
+  uri: lb://emergency-service
+  predicates:
+    - Path=/api/emergencies/**
+  filters:
+    - StripPrefix=1
+```
 
-Access URL:
+This means the gateway exposes the emergency endpoints under the public path:
 
 ```text
-http://localhost:8080
+http://localhost:8080/api/emergencies
 ```
 
 ### 3. Emergency Service
 
-Runs on port `8081`.
-
-- Main domain service for emergency operations
-- Uses PostgreSQL as its data store
-- Exposes actuator endpoints for health monitoring
+- Port: `8081`
+- Role: main backend service for emergency reporting, lookup, pagination, and status updates
+- Persistence: PostgreSQL
+- Database migration: Flyway enabled
+- Health endpoint: Actuator
 
 Access URL:
 
@@ -91,20 +98,11 @@ Health check:
 http://localhost:8081/actuator/health
 ```
 
-## Prerequisites
+## Environment Configuration
 
-Before running the services, make sure you have:
+The service reads database variables from environment or `.env` properties. Current config uses:
 
-- JDK 25 installed
-- Maven installed or use the included Maven wrapper scripts
-- PostgreSQL database running locally
-- Environment variables configured for the database connection
-
-## Environment Variables
-
-The `emergency-service` uses these environment variables:
-
-```bash
+```properties
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=erads_emergency_service_db
@@ -112,9 +110,47 @@ DB_USERNAME=your_db_username
 DB_PASSWORD=your_db_password
 ```
 
+The app config is in:
+
+```text
+emergency-service/src/main/resources/application.yaml
+```
+
+## Active Emergency API
+
+The emergency service currently exposes these routes through the controller at `/emergencies`:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/emergencies` | Create a new emergency |
+| `POST` | `/emergencies/{id}` | Fetch an emergency by ID |
+| `POST` | `/emergencies/track/{accessCode}` | Fetch an emergency by access code |
+| `POST` | `/emergencies/retiveAll` | List emergencies with pagination and optional status filter |
+| `PATCH` | `/emergencies/{id}/status` | Update an emergency status |
+
+Because the gateway strips the `/api` prefix, the public routes are:
+
+```text
+POST http://localhost:8080/api/emergencies
+POST http://localhost:8080/api/emergencies/{id}
+POST http://localhost:8080/api/emergencies/track/{accessCode}
+POST http://localhost:8080/api/emergencies/retiveAll
+PATCH http://localhost:8080/api/emergencies/{id}/status
+```
+
+## Prerequisites
+
+Before starting the project, make sure you have:
+
+- JDK 25 installed
+- Maven installed or use the included Maven wrappers
+- PostgreSQL running locally
+- A database named `erads_emergency_service_db` available
+- The required environment variables set
+
 ## Run the Project
 
-Start the services in the following order:
+Start the services in this order:
 
 ### 1. Start Discovery Server
 
@@ -132,6 +168,8 @@ cd api-gateway
 
 ### 3. Start Emergency Service
 
+Linux/macOS:
+
 ```bash
 cd emergency-service
 export DB_HOST=localhost
@@ -142,7 +180,7 @@ export DB_PASSWORD=your_db_password
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 cd emergency-service
@@ -156,31 +194,34 @@ $env:DB_PASSWORD="your_db_password"
 
 ## Build the Project
 
-To build all services:
+To build the project for a service module:
 
 ```bash
 cd emergency-service
 ./mvnw clean install
 ```
 
-You can run the same Maven command in each service module to compile and package that service independently.
+You can run the same command in each module to compile and package that service independently.
 
-## Notes
+## Current Notes
 
-- The database URL is configured in the `application.yaml` file for the emergency service.
-- Eureka discovery is enabled across the services.
-- The service architecture is ready for expansion with additional microservices, authentication, and more domain logic.
+- The application is configured for Spring Boot 4.1.1 and Java 25.
+- Eureka is enabled and the gateway registers with the discovery server.
+- Emergency routes are active and delivered through the gateway.
+- Flyway is enabled for database migrations.
+- The project is already beyond the template stage and is structured around the live emergency domain workflow.
 
-## Future Improvements
+## Next Improvements
 
-Potential enhancements for the project include:
+Potential next steps for the project include:
 
 - JWT-based authentication and authorization
-- API rate limiting and circuit breakers
+- API rate limiting and circuit-breaker protection
 - Docker and Docker Compose setup
 - CI/CD pipeline configuration
-- Additional emergency domain modules and event-driven integrations
+- Additional ambulance and dispatch domain modules
+- Better API naming consistency and documentation cleanup
 
 ## License
 
-This project is currently configured as a development workspace and does not yet specify a formal license
+This workspace does not yet define a formal project license.

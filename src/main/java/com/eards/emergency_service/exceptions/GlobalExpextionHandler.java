@@ -73,7 +73,7 @@ public class GlobalExpextionHandler {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         }
 
-        // is for unexpected errors
+        // is for unexpected errors inside
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleUnexpectedError(
                         Exception ex,
