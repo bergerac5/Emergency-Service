@@ -5,6 +5,7 @@ import org.mapstruct.Mapping;
 
 import com.eards.emergency_service.dto.CreateEmergencyRequest;
 import com.eards.emergency_service.dto.EmergencyResponse;
+import com.eards.emergency_service.dto.TrackEmergencyResponse;
 import com.eards.emergency_service.models.Emergency;
 
 @Mapper(componentModel = "spring")
@@ -18,5 +19,7 @@ public interface EmergencyMapper {
     Emergency toEntity(CreateEmergencyRequest request);
 
     EmergencyResponse toResponse(Emergency emergency);
+
+    TrackEmergencyResponse toTrackResponse(Emergency emergency);
 
 }
