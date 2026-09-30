@@ -47,7 +47,7 @@ public class GlobalExpextionHandler {
                                 .map(error -> error.getDefaultMessage() == null ? "Invalid value"
                                                 : error.getDefaultMessage())
                                 .collect(Collectors.joining("; "));
-
+                logger.error("Validation error on {} {}: {}", request.getMethod(), request.getRequestURI(), message);
                 ErrorResponse error = new ErrorResponse(
                                 Instant.now(),
                                 HttpStatus.BAD_REQUEST.value(),
@@ -78,7 +78,7 @@ public class GlobalExpextionHandler {
         public ResponseEntity<ErrorResponse> handleUnexpectedError(
                         Exception ex,
                         HttpServletRequest request) {
-
+                logger.error("Unhandled exception on {} {}", request.getMethod(), request.getRequestURI(), ex);
                 ErrorResponse error = new ErrorResponse(
                                 Instant.now(),
                                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -111,16 +111,43 @@ public class GlobalExpextionHandler {
                 return build(HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + ex.getName() + "'", request);
         }
 
+        // is for missing or malformed request bodies
         @ExceptionHandler(HttpMessageNotReadableException.class)
         public ResponseEntity<ErrorResponse> handleUnreadable(
                         HttpMessageNotReadableException ex, HttpServletRequest request) {
                 return build(HttpStatus.BAD_REQUEST, "Request body is missing or malformed", request);
         }
 
+        // helper method to build error responses
         private ResponseEntity<ErrorResponse> build(HttpStatus status, String message, HttpServletRequest request) {
                 ErrorResponse error = new ErrorResponse(
                                 Instant.now(), status.value(), status.getReasonPhrase(), message,
                                 request.getRequestURI());
+                logger.error(message);
                 return ResponseEntity.status(status).body(error);
+        }
+
+        // handle optimistic locking failures
+        @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+        public ResponseEntity<ErrorResponse> handleOptimisticLock(
+                        org.springframework.orm.ObjectOptimisticLockingFailureException ex,
+                        HttpServletRequest request) {
+                logger.warn("Optimistic lock conflict: {}", ex.getMessage());
+                return build(HttpStatus.CONFLICT,
+                                "This emergency was modified by someone else. Please retry.", request);
+        }
+
+        // handle invalid status values
+        @ExceptionHandler(InvalidStatusException.class)
+        public ResponseEntity<ErrorResponse> handleInvalidStatus(
+                        InvalidStatusException ex, HttpServletRequest request) {
+                logger.error("Invalid status value", ex);
+                ErrorResponse errorResponse = new ErrorResponse(
+                                Instant.now(),
+                                HttpStatus.BAD_REQUEST.value(),
+                                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                                request.getRequestURI(),
+                                ex.getMessage());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
 }

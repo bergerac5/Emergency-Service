@@ -33,6 +33,7 @@ public class EmergencyController {
 
     private final EmergencyService emergencyService;
 
+    // Create a new emergency report
     @PostMapping
     public ResponseEntity<ApiResponse<EmergencyResponse>> createEmergency(
             @Valid @RequestBody CreateEmergencyRequest request) {
@@ -41,6 +42,7 @@ public class EmergencyController {
         return ResponseEntity.created(URI.create("/emergencies/" + response.id())).body(apiResponse);
     }
 
+    // Get emergency by ID
     @PostMapping("/{id}")
     public ResponseEntity<ApiResponse<EmergencyResponse>> getEmergencyById(
             @PathVariable UUID id) {
@@ -49,6 +51,7 @@ public class EmergencyController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    // Track emergency by access code
     @PostMapping("/track/{accessCode}")
     public ResponseEntity<ApiResponse<EmergencyResponse>> getEmergencyByAccessCode(
             @PathVariable String accessCode) {
@@ -57,6 +60,7 @@ public class EmergencyController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    // Get all emergencies with optional filtering and pagination
     @PostMapping("/retiveAll")
     public ResponseEntity<ApiResponse<PageResponse<EmergencyResponse>>> list(
             @RequestParam(required = false) EmergencyStatus status,
@@ -72,12 +76,12 @@ public class EmergencyController {
         return ResponseEntity.ok(body);
     }
 
-    @PatchMapping("/{id}/status")
+    // Update emergency status
+    @PatchMapping("/update/status")
     public ResponseEntity<ApiResponse<EmergencyResponse>> updateStatus(
-            @PathVariable UUID id,
             @Valid @RequestBody UpdateEmergencyStatusRequest request) {
         ApiResponse<EmergencyResponse> body = ApiResponse.of("Emergency status updated",
-                emergencyService.updateStatus(id, request.status()));
+                emergencyService.updateStatus(request));
         return ResponseEntity.ok(body);
     }
 

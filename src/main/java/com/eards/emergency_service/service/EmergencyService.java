@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.eards.emergency_service.dto.CreateEmergencyRequest;
 import com.eards.emergency_service.dto.EmergencyResponse;
 import com.eards.emergency_service.dto.PageResponse;
+import com.eards.emergency_service.dto.UpdateEmergencyStatusRequest;
 import com.eards.emergency_service.exceptions.AccessCodeNotFound;
 import com.eards.emergency_service.exceptions.EmergencyNotFoundException;
 import com.eards.emergency_service.exceptions.InvalidStatusTransitionException;
@@ -28,6 +29,9 @@ public class EmergencyService {
 
     private final EmergencyMapper emergencyMapper;
 
+    private final NotificationService notificationService;
+
+    // create emergency
     @Transactional
     public EmergencyResponse createEmergency(CreateEmergencyRequest emergencyRequest) {
         Emergency emergency = emergencyMapper.toEntity(emergencyRequest);
@@ -35,6 +39,7 @@ public class EmergencyService {
         return emergencyMapper.toResponse(savedEmergency);
     }
 
+    // get emergency by id
     @Transactional(readOnly = true)
     public EmergencyResponse getEmergencyById(UUID id) {
         Emergency emergency = emergencyRepository.findById(id)
@@ -42,6 +47,7 @@ public class EmergencyService {
         return emergencyMapper.toResponse(emergency);
     }
 
+    // get emergency by access code
     @Transactional(readOnly = true)
     public EmergencyResponse getEmergencyByAccessCode(String accessCode) {
         Emergency emergency = emergencyRepository.findByAccessCode(accessCode)
@@ -49,6 +55,7 @@ public class EmergencyService {
         return emergencyMapper.toResponse(emergency);
     }
 
+    // list emergencies with optional status filter
     @Transactional(readOnly = true)
     public PageResponse<EmergencyResponse> listEmergencies(EmergencyStatus status, Pageable pageable) {
         Page<Emergency> page = (status == null)
@@ -57,16 +64,22 @@ public class EmergencyService {
         return PageResponse.from(page.map(emergencyMapper::toResponse));
     }
 
+    // update emergency status
     @Transactional
-    public EmergencyResponse updateStatus(UUID id, EmergencyStatus newStatus) {
-        Emergency emergency = findOrThrow(id);
+    public EmergencyResponse updateStatus(UpdateEmergencyStatusRequest statusRequest) {
+        Emergency emergency = findOrThrow(statusRequest.id());
 
-        if (!emergency.getStatus().canTransitionTo(newStatus)) {
-            throw new InvalidStatusTransitionException(emergency.getStatus(), newStatus);
+        if (!emergency.getStatus().canTransitionTo(statusRequest.status())) {
+            throw new InvalidStatusTransitionException(
+                    emergency.getStatus(), statusRequest.status());
         }
 
-        emergency.setStatus(newStatus);
-        return emergencyMapper.toResponse(emergencyRepository.save(emergency));
+        emergency.setStatus(statusRequest.status());
+        Emergency saved = emergencyRepository.save(emergency);
+
+        notificationService.notifyStatusChange(saved.getId(), saved.getStatus());
+
+        return emergencyMapper.toResponse(saved);
     }
 
     private Emergency findOrThrow(UUID id) {

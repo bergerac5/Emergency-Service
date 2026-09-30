@@ -16,6 +16,7 @@ public interface EmergencyMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "accessCode", ignore = true)
+    @Mapping(target = "version", ignore = true)
     Emergency toEntity(CreateEmergencyRequest request);
 
     EmergencyResponse toResponse(Emergency emergency);

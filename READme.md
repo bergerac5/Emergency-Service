@@ -126,7 +126,9 @@ The emergency service currently exposes these routes through the controller at `
 | `POST` | `/emergencies/{id}` | Fetch an emergency by ID |
 | `POST` | `/emergencies/track/{accessCode}` | Fetch an emergency by access code |
 | `POST` | `/emergencies/retiveAll` | List emergencies with pagination and optional status filter |
-| `PATCH` | `/emergencies/{id}/status` | Update an emergency status |
+| `PATCH` | `/emergencies/update/status` | Update an emergency status |
+
+The list endpoint accepts optional `status`, `page`, and `size` query parameters. `page` defaults to `0`; `size` defaults to `20` and is capped at `100`.
 
 Because the gateway strips the `/api` prefix, the public routes are:
 
@@ -134,8 +136,8 @@ Because the gateway strips the `/api` prefix, the public routes are:
 POST http://localhost:8080/api/emergencies
 POST http://localhost:8080/api/emergencies/{id}
 POST http://localhost:8080/api/emergencies/track/{accessCode}
-POST http://localhost:8080/api/emergencies/retiveAll
-PATCH http://localhost:8080/api/emergencies/{id}/status
+POST http://localhost:8080/api/emergencies/retiveAll?status=REPORTED&page=0&size=20
+PATCH http://localhost:8080/api/emergencies/update/status
 ```
 
 ## Prerequisites
