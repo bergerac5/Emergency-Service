@@ -1,106 +1,177 @@
-# ERADS
+# Emergency Response and Ambulance Dispatch System (ERADS)
 
-ERADS is a Spring Boot microservices project for emergency response coordination and ambulance dispatch workflows. The current workspace contains a working discovery layer, a gateway, and the core emergency domain service already wired with PostgreSQL persistence and Eureka registration.
+ERADS is a Java 25 Spring Boot microservices workspace for emergency reporting, incident tracking, status management, and event-driven dispatch workflows.
 
-## Current Workspace
+The current implementation includes Eureka service discovery, an API gateway, an emergency domain service, PostgreSQL persistence, Flyway migrations, Kafka event delivery, and a transactional outbox.
 
-This repository includes the following services:
+## Workspace Modules
 
-- `discovery-server`: Eureka service registry on port `8761`
-- `api-gateway`: Spring Cloud Gateway on port `8080`
-- `emergency-service`: emergency domain service on port `8081`
+| Module | Purpose | Port |
+| --- | --- | --- |
+| `discovery-server` | Eureka service registry | `8761` |
+| `api-gateway` | Public route entry point | `8080` |
+| `emergency-service` | Emergency reporting, tracking, and status updates | `8081` |
+| `dispatch-service` | Dispatch domain service | Configured by the module |
+| `eards-events` | Shared event types and event envelopes | Maven library |
+| `kafka` | Local Kafka, ZooKeeper, and Kafka UI environment | `9092`, `8089` |
 
-## Tech Stack
+## Technology Stack
 
 - Java 25
-- Spring Boot 4.1.1
+- Spring Boot 4.1.3
 - Spring Cloud 2025.1.3
-- PostgreSQL
+- Spring Web MVC
 - Spring Data JPA
-- Flyway
-- Eureka Discovery Client
-- Spring Cloud Gateway (WebMVC)
+- Spring Validation
 - Spring Actuator
+- PostgreSQL
+- Flyway
+- Eureka
+- Spring Cloud Gateway
+- Apache Kafka
+- MapStruct 1.6.3
+- Lombok
 - Maven
 
-## Runtime Architecture
+## Architecture
 
 ```text
-ERADS/
-├── discovery-server/
-│   ├── src/
-│   ├── pom.xml
-│   └── mvnw
-├── api-gateway/
-│   ├── src/
-│   ├── pom.xml
-│   └── mvnw
-├── emergency-service/
-│   ├── src/
-│   ├── pom.xml
-│   ├── mvnw
-│   └── READme.md
-└── ERADS_Professional_Project_Document.pdf
+Client
+  |
+  | HTTP
+  v
+API Gateway :8080
+  |
+  +--> Eureka :8761
+  |
+  +--> Emergency Service :8081
+          |
+          +--> PostgreSQL
+          |
+          +--> Outbox table
+                  |
+                  | relay every 2 seconds
+                  v
+               Kafka: emergency.events
 ```
 
-## Service Details
+## Emergency Service Features
 
-### 1. Discovery Server
+- Create emergency reports
+- Generate a unique 8-character tracking code
+- Retrieve emergencies by UUID or access code
+- Filter and paginate emergency records
+- Validate status transitions
+- Protect concurrent updates with optimistic locking
+- Store `EmergencyCreated` events in the transactional outbox
+- Relay outbox events to Kafka
+- Publish to the `emergency.events` topic with three partitions
+- Expose health and operational endpoints through Actuator
+- Return structured validation and error responses
 
-- Port: `8761`
-- Role: Eureka registry and service discovery hub
-- Configuration: `eureka.client.register-with-eureka=false` and `fetch-registry=false`
+## API Routes
 
-Access URL:
+The emergency controller is mounted at `/emergencies`.
+
+| Method | Service route | Public gateway route | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/emergencies` | `/api/emergencies` | Create an emergency |
+| `POST` | `/emergencies/{id}` | `/api/emergencies/{id}` | Get an emergency by UUID |
+| `POST` | `/emergencies/track/{accessCode}` | `/api/emergencies/track/{accessCode}` | Track an emergency |
+| `POST` | `/emergencies/retiveAll` | `/api/emergencies/retiveAll` | List and filter emergencies |
+| `PATCH` | `/emergencies/update/status` | `/api/emergencies/update/status` | Update emergency status |
+
+The gateway matches `/api/emergencies/**` and removes the `/api` prefix before forwarding requests.
+
+### Create an Emergency
+
+```http
+POST /api/emergencies
+Content-Type: application/json
+
+{
+  "type": "MEDICAL",
+  "priority": "HIGH",
+  "description": "Patient needs urgent medical assistance",
+  "latitude": -1.9536,
+  "longitude": 30.0606
+}
+```
+
+Validation rules:
+
+- `type` is required
+- `priority` is required
+- `description` is required and limited to 255 characters
+- `latitude` must be between `-90` and `90`
+- `longitude` must be between `-180` and `180`
+
+### Track an Emergency
+
+```http
+POST /api/emergencies/track/ABCD2345
+```
+
+Access codes use uppercase letters and digits while excluding ambiguous characters.
+
+### List Emergencies
+
+```http
+POST /api/emergencies/retiveAll?status=REPORTED&page=0&size=20
+```
+
+- `status` is optional
+- `page` defaults to `0`
+- `size` defaults to `20`
+- `size` is limited to `100`
+- Results are sorted by `createdAt` in descending order
+
+### Update Emergency Status
+
+```http
+PATCH /api/emergencies/update/status
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "status": "DISPATCHED"
+}
+```
+
+An invalid transition returns HTTP `422`. Concurrent modification conflicts return HTTP `409`.
+
+## Enum Values
+
+Emergency types:
 
 ```text
-http://localhost:8761
+FIRE, MEDICAL, POLICE, NATURAL_DISASTER, OTHER, UNKNOWN
 ```
 
-### 2. API Gateway
-
-- Port: `8080`
-- Role: route entry point for external traffic
-- Current route:
-
-```yaml
-- id: emergency-service
-  uri: lb://emergency-service
-  predicates:
-    - Path=/api/emergencies/**
-  filters:
-    - StripPrefix=1
-```
-
-This means the gateway exposes the emergency endpoints under the public path:
+Emergency priorities:
 
 ```text
-http://localhost:8080/api/emergencies
+LOW, MEDIUM, HIGH, CRITICAL, UNKNOWN
 ```
 
-### 3. Emergency Service
-
-- Port: `8081`
-- Role: main backend service for emergency reporting, lookup, pagination, and status updates
-- Persistence: PostgreSQL
-- Database migration: Flyway enabled
-- Health endpoint: Actuator
-
-Access URL:
+Emergency statuses:
 
 ```text
-http://localhost:8081
+REPORTED
+WAITING_FOR_DISPATCH
+DISPATCHING
+DISPATCHED
+AMBULANCE_EN_ROUTE
+ON_SCENE
+COMPLETED
+CANCELLED
+FAILED
+UNKNOWN
 ```
 
-Health check:
+## Database and Migrations
 
-```text
-http://localhost:8081/actuator/health
-```
-
-## Environment Configuration
-
-The service reads database variables from environment or `.env` properties. Current config uses:
+The emergency service connects to PostgreSQL with these environment variables:
 
 ```properties
 DB_HOST=localhost
@@ -110,120 +181,137 @@ DB_USERNAME=your_db_username
 DB_PASSWORD=your_db_password
 ```
 
-The app config is in:
+Spring loads configuration from `src/main/resources/application.yaml` and optionally imports a local `.env` file.
 
-```text
-emergency-service/src/main/resources/application.yaml
-```
+Flyway migrations create and update:
 
-## Active Emergency API
+- `emergencies`
+- `outbox_events`
+- `processed_events`
+- the unique `access_code` column
+- emergency constraints and indexes
+- the JPA optimistic-lock `version` column
 
-The emergency service currently exposes these routes through the controller at `/emergencies`:
+## Kafka Events
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `POST` | `/emergencies` | Create a new emergency |
-| `POST` | `/emergencies/{id}` | Fetch an emergency by ID |
-| `POST` | `/emergencies/track/{accessCode}` | Fetch an emergency by access code |
-| `POST` | `/emergencies/retiveAll` | List emergencies with pagination and optional status filter |
-| `PATCH` | `/emergencies/update/status` | Update an emergency status |
+Emergency creation stores an event envelope and its payload in `outbox_events` in the same database transaction as the emergency record.
 
-The list endpoint accepts optional `status`, `page`, and `size` query parameters. `page` defaults to `0`; `size` defaults to `20` and is capped at `100`.
+- Topic: `emergency.events`
+- Partitions: `3`
+- Replicas: `1`
+- Aggregate key: emergency UUID
+- Relay interval: `2` seconds
+- Relay batch size: `50`
+- Delivery timeout: `5` seconds
 
-Because the gateway strips the `/api` prefix, the public routes are:
+The relay adds `eventId` and `eventType` headers to Kafka records.
 
-```text
-POST http://localhost:8080/api/emergencies
-POST http://localhost:8080/api/emergencies/{id}
-POST http://localhost:8080/api/emergencies/track/{accessCode}
-POST http://localhost:8080/api/emergencies/retiveAll?status=REPORTED&page=0&size=20
-PATCH http://localhost:8080/api/emergencies/update/status
-```
+Local Kafka configuration is defined in `kafka/docker-compose.yml`.
 
 ## Prerequisites
 
-Before starting the project, make sure you have:
+- JDK 25
+- Maven or the included Maven Wrapper
+- PostgreSQL
+- Docker and Docker Compose
+- A database named `erads_emergency_service_db`
 
-- JDK 25 installed
-- Maven installed or use the included Maven wrappers
-- PostgreSQL running locally
-- A database named `erads_emergency_service_db` available
-- The required environment variables set
+## Local Setup
 
-## Run the Project
+Run commands from the `ERADS` workspace directory.
 
-Start the services in this order:
+### 1. Start PostgreSQL
 
-### 1. Start Discovery Server
+Create the emergency database and configure an application database account.
 
-```bash
-cd discovery-server
-./mvnw spring-boot:run
-```
-
-### 2. Start API Gateway
-
-```bash
-cd api-gateway
-./mvnw spring-boot:run
-```
-
-### 3. Start Emergency Service
-
-Linux/macOS:
-
-```bash
-cd emergency-service
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=erads_emergency_service_db
-export DB_USERNAME=your_db_username
-export DB_PASSWORD=your_db_password
-./mvnw spring-boot:run
-```
-
-Windows PowerShell:
+### 2. Start Kafka
 
 ```powershell
-cd emergency-service
+cd kafka
+docker compose up -d
+```
+
+Kafka is available at `localhost:9092`, and Kafka UI at `http://localhost:8089`.
+
+### 3. Install the Shared Event Library
+
+The emergency service depends on `eards-events`, so install it locally before starting the service.
+
+```powershell
+cd ..\eards-events
+.\mvnw.cmd clean install
+```
+
+### 4. Start Eureka
+
+```powershell
+cd ..\discovery-server
+.\mvnw.cmd spring-boot:run
+```
+
+Open `http://localhost:8761`.
+
+### 5. Start the Emergency Service
+
+Set database variables in the current PowerShell session:
+
+```powershell
+cd ..\emergency-service
 $env:DB_HOST="localhost"
 $env:DB_PORT="5432"
 $env:DB_NAME="erads_emergency_service_db"
 $env:DB_USERNAME="your_db_username"
 $env:DB_PASSWORD="your_db_password"
-./mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
 
-## Build the Project
+Direct health check:
 
-To build the project for a service module:
+```text
+http://localhost:8081/actuator/health
+```
 
-```bash
+### 6. Start the API Gateway
+
+```powershell
+cd ..\api-gateway
+.\mvnw.cmd spring-boot:run
+```
+
+Gateway entry point:
+
+```text
+http://localhost:8080
+```
+
+## Build and Test
+
+Build the shared event library:
+
+```powershell
+cd eards-events
+.\mvnw.cmd clean install
+```
+
+Test and package the emergency service:
+
+```powershell
 cd emergency-service
-./mvnw clean install
+.\mvnw.cmd clean test
+.\mvnw.cmd clean package
 ```
 
-You can run the same command in each module to compile and package that service independently.
+## Current State
 
-## Current Notes
-
-- The application is configured for Spring Boot 4.1.1 and Java 25.
-- Eureka is enabled and the gateway registers with the discovery server.
-- Emergency routes are active and delivered through the gateway.
-- Flyway is enabled for database migrations.
-- The project is already beyond the template stage and is structured around the live emergency domain workflow.
-
-## Next Improvements
-
-Potential next steps for the project include:
-
-- JWT-based authentication and authorization
-- API rate limiting and circuit-breaker protection
-- Docker and Docker Compose setup
-- CI/CD pipeline configuration
-- Additional ambulance and dispatch domain modules
-- Better API naming consistency and documentation cleanup
+- Eureka, API gateway, and emergency service are implemented
+- Emergency creation, lookup, tracking, listing, and status updates are active
+- PostgreSQL and Flyway persistence is configured
+- Access codes and optimistic locking are implemented
+- Kafka topic configuration and outbox publishing are implemented
+- Status transitions are validated
+- Unit and concurrency tests are present
+- Authentication and dispatch integration remain future work
 
 ## License
 
-This workspace does not yet define a formal project license.
+No license has been defined for this project.

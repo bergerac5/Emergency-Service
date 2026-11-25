@@ -20,8 +20,9 @@ import com.eards.emergency_service.dto.CreateEmergencyRequest;
 import com.eards.emergency_service.dto.EmergencyResponse;
 import com.eards.emergency_service.dto.PageResponse;
 import com.eards.emergency_service.dto.UpdateEmergencyStatusRequest;
-import com.eards.emergency_service.models.EmergencyStatus;
+
 import com.eards.emergency_service.service.EmergencyService;
+import com.eards_events.emergency.EmergencyStatus;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

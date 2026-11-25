@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.3</version>
 		<relativePath/>
 		<!-- lookup parent from repository -->
 	</parent>
@@ -33,6 +33,12 @@
 		<mapstruct.version>1.6.3</mapstruct.version>
 	</properties>
 	<dependencies>
+		<!-- Shared modules -->
+		<dependency>
+			<groupId>com.eards</groupId>
+			<artifactId>eards-events</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 		<!-- Persistence and ORM support for relational database access. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -154,6 +160,11 @@
 			<groupId>org.awaitility</groupId>
 			<artifactId>awaitility</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<!-- Kafka producer: KafkaTemplate and ProducerRecord -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-kafka</artifactId>
 		</dependency>
 	</dependencies>
 	<dependencyManagement>

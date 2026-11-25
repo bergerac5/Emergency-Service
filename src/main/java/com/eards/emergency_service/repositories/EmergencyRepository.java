@@ -6,9 +6,11 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.eards.emergency_service.models.Emergency;
-import com.eards.emergency_service.models.EmergencyStatus;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import com.eards_events.emergency.EmergencyStatus;
 
 public interface EmergencyRepository extends JpaRepository<Emergency, UUID> {
 

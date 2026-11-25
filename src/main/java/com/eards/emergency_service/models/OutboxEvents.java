@@ -10,15 +10,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import tools.jackson.databind.JsonNode;
 
 @Entity
 @Table(name = "outbox_events")
@@ -28,7 +27,6 @@ import tools.jackson.databind.JsonNode;
 @Setter
 public class OutboxEvents {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     @Column(name = "aggregate_id", nullable = false)
     private UUID aggregateId;
@@ -40,7 +38,7 @@ public class OutboxEvents {
     private Integer eventVersion;
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", columnDefinition = "jsonb", nullable = false)
-    private JsonNode payload;
+    private String payload;
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private EventStatus status;
@@ -48,5 +46,19 @@ public class OutboxEvents {
     private Timestamp createdAt;
     @Column(name = "updated_at", nullable = false)
     private Timestamp updatedAt;
+
+    @PrePersist
+    void onCreate() {
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        this.createdAt = now;
+        this.updatedAt = now;
+        if (this.status == null)
+            this.status = EventStatus.PENDING;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = new Timestamp(System.currentTimeMillis());
+    }
 
 }

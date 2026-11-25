@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.eards.emergency_service.models.EmergencyStatus;
+import com.eards_events.emergency.EmergencyStatus;
 
 @Service
 public class NotificationService {

@@ -6,6 +6,10 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.eards_events.emergency.EmergencyPriority;
+import com.eards_events.emergency.EmergencyStatus;
+import com.eards_events.emergency.EmergencyType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

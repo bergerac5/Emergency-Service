@@ -15,10 +15,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import com.eards.emergency_service.dto.CreateEmergencyRequest;
 import com.eards.emergency_service.dto.UpdateEmergencyStatusRequest;
-import com.eards.emergency_service.models.EmergencyPriority;
-import com.eards.emergency_service.models.EmergencyStatus;
-import com.eards.emergency_service.models.EmergencyType;
+
 import com.eards.emergency_service.service.EmergencyService;
+import com.eards_events.emergency.EmergencyPriority;
+import com.eards_events.emergency.EmergencyStatus;
+import com.eards_events.emergency.EmergencyType;
 
 @SpringBootTest
 public class EmergencyServiceConcurrencyTest {

@@ -1,5 +1,6 @@
 package com.eards.emergency_service.service;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -16,13 +17,20 @@ import com.eards.emergency_service.exceptions.EmergencyNotFoundException;
 import com.eards.emergency_service.exceptions.InvalidStatusTransitionException;
 import com.eards.emergency_service.mapper.EmergencyMapper;
 import com.eards.emergency_service.models.Emergency;
-import com.eards.emergency_service.models.EmergencyStatus;
+
+import com.eards.emergency_service.models.OutboxEvents;
 import com.eards.emergency_service.repositories.EmergencyRepository;
+import com.eards.emergency_service.repositories.OutboxRepository;
+import com.eards_events.emergency.EmergencyCreated;
+import com.eards_events.emergency.EmergencyEventTypes;
+import com.eards_events.emergency.EmergencyStatus;
+import com.eards_events.envelope.EventEnvelope;
 
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
-@RequiredArgsConstructor
+
 public class EmergencyService {
 
     private final EmergencyRepository emergencyRepository;
@@ -31,11 +39,59 @@ public class EmergencyService {
 
     private final NotificationService notificationService;
 
+    private final ObjectMapper objectMapper;
+
+    private final OutboxRepository outboxRepository;
+
+    public EmergencyService(EmergencyRepository emergencyRepository, EmergencyMapper emergencyMapper,
+            NotificationService notificationService, ObjectMapper objectMapper, OutboxRepository outboxRepository) {
+        this.emergencyRepository = emergencyRepository;
+        this.emergencyMapper = emergencyMapper;
+        this.notificationService = notificationService;
+        this.objectMapper = objectMapper;
+        this.outboxRepository = outboxRepository;
+    }
+
     // create emergency
     @Transactional
     public EmergencyResponse createEmergency(CreateEmergencyRequest emergencyRequest) {
         Emergency emergency = emergencyMapper.toEntity(emergencyRequest);
         Emergency savedEmergency = emergencyRepository.save(emergency);
+
+        UUID eventId = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
+
+        // Create the EmergencyCreated event
+        EmergencyCreated data = new EmergencyCreated(
+                savedEmergency.getId(),
+                savedEmergency.getType(),
+                savedEmergency.getPriority(),
+                savedEmergency.getDescription(),
+                savedEmergency.getLatitude(),
+                savedEmergency.getLongitude(),
+                savedEmergency.getStatus(),
+                savedEmergency.getVersion());
+
+        // Create the event envelope
+        EventEnvelope<EmergencyCreated> envelope = new EventEnvelope<>(
+                eventId,
+                EmergencyEventTypes.EMERGENCY_CREATED,
+                1,
+                Instant.now(),
+                savedEmergency.getId().toString(),
+                correlationId.toString(),
+                "emergency-service",
+                data);
+
+        OutboxEvents outbox = new OutboxEvents();
+        outbox.setId(eventId);
+        outbox.setAggregateId(savedEmergency.getId()); // UUID, from the entity
+        outbox.setAggregateType("Emergency");
+        outbox.setEventType(envelope.eventType());
+        outbox.setEventVersion(envelope.eventVersion());
+        outbox.setPayload(objectMapper.writeValueAsString(envelope));
+        outboxRepository.save(outbox);
+
         return emergencyMapper.toResponse(savedEmergency);
     }
 
